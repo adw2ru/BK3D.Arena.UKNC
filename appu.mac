@@ -1,0 +1,692 @@
+	;
+	; PPU code
+	;
+	MTPS #200
+
+	; SAVE OLD VECTORS
+	CALL SAVE
+
+	; INIT VIDEO TABLES
+	CALL IVTS
+
+	; KEYBOARD
+	MOV PC,-(SP)
+	ADD #KINT-.,(SP)
+	MOV (SP)+,@#300
+	BIS #100,@#177700	; ENABLE KEYB INTERRUPTS
+
+	; CHANNEL 2
+	MOV PC,-(SP)
+	ADD #CH2PLI-.,(SP)
+	MOV (SP)+,@#340		; INTERRUPT ROUTINE
+	MOV #200,@#342
+	BIS #2,@#177066		; ALLOW INTTERRUPTS FROM CH2
+
+	; TIMERS
+	BIS #^B0000001100000000,@#177054	; DISABLE VSYNC IN PPU&CPU
+	BIC #^B0001111110000000,@#177716	; SOUND INIT (MIXER OFF) 	
+	CALL TINIT				; init pp timer
+	MOV PC,-(SP)
+	ADD #POP-.,(SP)
+	MOV (SP)+,@#304
+	MOV PC,-(SP)
+	ADD #POPT-.,(SP)
+	MOV (SP)+,@#100
+	MOV #128.,TON+2		; DEFAULT
+	BIS #107,@#177710
+	BIC #^B0000000100000000,@#177054	; ENABLE VSYNC IN PPU
+
+	CALL READY
+
+	; AND HERE WE GO
+	MTPS #0
+
+	RETURN
+
+; //////////////////////////////////////////////////////////////////////////////
+; // Utils
+; //////////////////////////////////////////////////////////////////////////////
+
+READY:	; SET "PPU IS READY"
+	MOV #PpuComm/2,@#177010
+	CLR @#177014
+	RET
+
+SAVEM:	MOV #40000/2,R0		; FROM
+	MOV #100000,R1		; INTO
+	MOV #30880./2,R2	; HOW MANY
+1$:	MOV R0,@#177010
+	INC R0
+	MOV @#177014,R3
+	MOV R1,@#177010
+	INC R1
+	MOV R3,@#177012
+	SWAB R3
+	MOV R1,@#177010
+	INC R1
+	MOV R3,@#177012
+	SOB R2,1$
+	RET
+
+RESTM:	MOV #40000/2,R0		; INTO
+	MOV #100000,R1		; FROM
+	MOV #30880./2,R2	; HOW MANY
+1$:	MOV R1,@#177010
+	INC R1
+	MOV @#177012,R3
+	SWAB R3
+	MOV R1,@#177010
+	INC R1
+	BIS @#177012,R3
+	MOV R0,@#177010
+	INC R0
+	SWAB R3
+	MOV R3,@#177014
+	SOB R2,1$
+	RET
+
+
+OLD300:	.WORD 0
+OLD340:	.WORD 0
+OLD342:	.WORD 0
+OLD304:	.WORD 0
+OLD100:	.WORD 0
+OLDX54:	.WORD 0
+OLDX16: .WORD 0
+OLDX66: .WORD 0
+OLDX00: .WORD 0
+OLD272:	.WORD 0
+OLD010: .WORD 0
+
+SAVE:	MOV @#300,OLD300
+	MOV @#340,OLD340
+	MOV @#342,OLD342
+	MOV @#304,OLD304
+	MOV @#100,OLD100
+	;
+	MOV @#177054,OLDX54
+	MOV @#177716,OLDX16
+	MOV @#177066,OLDX66
+	MOV @#177700,OLDX00
+	;
+	MOV @#272,OLD272
+	;
+	MOV @#177010,OLD010
+	;
+	CALL SAVEM
+	;
+	RETURN
+
+REST:	;
+	CALL RESTM
+	;
+	MOV OLD300,@#300
+	MOV OLD340,@#340
+	MOV OLD342,@#342
+	MOV OLD304,@#304
+	MOV OLD100,@#100
+	;
+	MOV OLDX54,@#177054
+	MOV OLDX16,@#177716
+	MOV OLDX66,@#177066
+	MOV OLDX00,@#177700
+	CLR @#177712
+	;
+	MOV OLD272,@#272
+	;
+	MOV OLD010,@#177010
+	;
+	RETURN
+
+VT1A:	.WORD 0			; Video Table 1 Address
+VT2A:	.WORD 0			; Video Table 2 Address
+VT3A:	.WORD 0			; Video Table 3 Address
+
+	; Init 3 Video Tables
+	; 1 - Game screen 1
+	; 2 - Main menu
+	; 3 - Game screen 2
+IVTS:	MOV PC,R0
+	ADD #VTABS-.,R0
+	;
+	; Proceed with 1st table
+	ADD #7,R0
+	BIC #7,R0		; BOUND TO 8 BYTES
+	MOV R0,VT1A
+	; Put Colors
+	MOV #114610,(R0)+	; 2
+	MOV #125314,(R0)+	; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)
+	BIS #2,(R0)+		; 2
+	; Put Format
+	MOV #20,(R0)+		; 2
+	MOV #7,(R0)+		; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 2*8
+	; 16 Unused Lines
+	MOV #16.,R1
+1$:     CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 4*16
+	SOB R1,1$
+	; 288 Lines Table
+	; 16 Empty Lines
+	MOV #16.,R1
+2$:     MOV #51000,(R0)+	; 2 4*16
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	SOB R1,2$
+	; 256 Main Lines
+	MOV #20000,R2		; Walls addr.
+	MOV #100000,R3		; Info addr.
+	MOV #64.,R1
+3$:     MOV R2,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	ADD #80.,R2
+	MOV R3,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 64*8
+	ADD #80.,R3
+	SOB R1,3$
+	MOV #44000,R3
+	MOV #64.,R1
+4$:     MOV R2,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	ADD #80.,R2
+	MOV R3,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 64*8
+	BIT R1,#1		; Make doubles
+	BEQ 40$
+	ADD #80.,R3
+40$:	SOB R1,4$
+	; Empty Cycle
+	MOV #51000,(R0)+	; 2
+	MOV R0,(R0)
+	SUB #2,(R0)+		; 2 4 2*8+4*16+4*16+64*8+64*8+4=1172
+	;
+	; Proceed with 2nd table
+	ADD #7,R0
+	BIC #7,R0		; BOUND TO 8 BYTES
+	MOV R0,VT2A
+	; Put Colors
+	MOV #114610,(R0)+	; 2
+	MOV #125314,(R0)+	; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)
+	BIS #2,(R0)+		; 2
+	; Put Format
+	MOV #20,(R0)+		; 2
+	MOV #7,(R0)+		; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 2*8
+	; 16 Unused Lines
+	MOV #16.,R1
+5$:     CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 4*16
+	SOB R1,5$
+	; 288 Lines Table
+	; 16 Empty Lines
+	MOV #16.,R1
+6$:     MOV #51000,(R0)+	; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 4*16
+	SOB R1,6$
+	; 256 Main Lines
+	MOV #256.,R1
+	MOV #100000,R2
+7$:	MOV R2,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 4*256
+	ADD #80.,R2
+	SOB R1,7$
+	; Empty Cycle
+	MOV #51000,(R0)+	; 2
+	MOV R0,(R0)
+	SUB #2,(R0)+		; 2 4 2*8+4*16+4*16+4*256+4=1172
+ 	;
+	; Proceed with 3rd table
+	ADD #7,R0
+	BIC #7,R0		; BOUND TO 8 BYTES
+	MOV R0,VT3A
+	; Put Colors
+	MOV #114610,(R0)+	; 2
+	MOV #125314,(R0)+	; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)
+	BIS #2,(R0)+		; 2
+	; Put Format
+	MOV #20,(R0)+		; 2
+	MOV #7,(R0)+		; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 2*8
+	; 16 Unused Lines
+	MOV #16.,R1
+8$:     CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 4*16
+	SOB R1,8$
+	; 288 Lines Table
+	; 16 Empty Lines
+	MOV #16.,R1
+9$:     MOV #51000,(R0)+	; 2 4*16
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	SOB R1,9$
+	; 256 Main Lines
+	MOV #20000,R2		; Walls addr.
+	MOV #100000,R3		; Info addr.
+	MOV #64.,R1
+10$:	MOV R2,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	ADD #80.,R2
+	MOV R3,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 64*8
+	ADD #80.,R3
+	SOB R1,10$
+	MOV #51120,R3
+	MOV #64.,R1
+11$:	MOV R2,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	ADD #80.,R2
+	MOV R3,(R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2 64*8
+	BIT R1,#1		; Make doubles
+	BEQ 110$
+	ADD #80.,R3
+110$:	SOB R1,11$
+	; Empty Cycle
+	MOV #51000,(R0)+	; 2
+	MOV R0,(R0)
+	SUB #2,(R0)+		; 2 4 2*8+4*16+4*16+64*8+64*8+4=1172
+	RETURN
+
+CH2PLI:	MOV R0,-(SP)
+	MOV R1,-(SP)
+	MOV R2,-(SP)
+	MOV R3,-(SP)
+	MOV R4,-(SP)
+	MOV R5,-(SP)
+	MOVB @#177064,R0	; ALWAYS READ
+	ASL R0
+	ADD R0,PC
+	BR CH2P0
+	BR CH2P1
+	BR CH2P2
+	BR CH2P3
+	BR CH2P4
+	BR CH2P5
+	BR CH2P6
+	BR CH2P7
+	BR CH2P8
+	BR CH2P9
+	BR CH2P10
+EXP:	CALL READY
+	MOV (SP)+,R5
+	MOV (SP)+,R4
+	MOV (SP)+,R3
+	MOV (SP)+,R2
+	MOV (SP)+,R1
+	MOV (SP)+,R0
+	RTI
+
+CH2P0:	; SET GAME SCREEN VIDEO LINES 1
+	MOV VT1A,-(SP)
+	BIS #6,(SP)
+	MOV (SP)+,@#272
+	BR EXP
+CH2P1:	; SET TITLE SCREEEN VIDEO LINES
+	MOV VT2A,-(SP)
+	BIS #6,(SP)
+	MOV (SP)+,@#272
+	BR EXP
+CH2P2:	; HIT SOUND COMMAND
+	MOV #478.,TON+2
+	MOV #5.,COUNT
+	BR EXP
+CH2P3:	; TAKE AMMO SOUND
+	MOV #379.,TON+2
+	MOV #5.,COUNT
+	BR EXP
+CH2P4:	; FIRE SOUND
+	MOV #239.,TON+2
+	MOV #5.,COUNT
+	BR EXP
+	; INIT VIDEO TABLES
+CH2P5:	CALL IVTS
+	BR EXP
+	; EXIT: RESTORE PPU STATE
+CH2P6:	CALL REST
+	BR EXP
+	; PRINT CHAR FOR MENUS&TEXTS
+CH2P7:  CALL XTXCH
+	BR EXP
+	; PRINT CHAR FOR IN GAME MSG&SCORE
+CH2P8:  CALL XPRCH
+	BR EXP
+	; ENABLE VSYNC IN CPU
+CH2P9:	BIC #^B0000001000000000,@#177054
+	BR EXP
+	; SET GAME SCREEN VIDEO LINES 2
+CH2P10:	MOV VT3A,-(SP)
+	BIS #6,(SP)
+	MOV (SP)+,@#272
+	BR EXP
+	;
+
+POPT:	DEC (PC)+
+COUNT:	.WORD 5.
+	BNE 1$
+	MOV #128.,TON+2		; DEFAULT -> STOP SOUND
+	MOV #5.,COUNT
+1$:	RTI
+
+POP:	TST @#177714
+	TST @#177714		; FIX?
+	CMP TON+2,#128.		; IS DEFAULT?
+	BEQ TON			; DO NOT GENERATE SOUND
+	MOV R0,-(SP)
+	MOV #200,R0
+	XOR R0,@#177716
+	MOV (SP)+,R0
+TON:	MOV #0,@#177712
+	RTI
+
+; pp timer ready wait
+TINIT:	CLR @#177710
+	TST @#177714
+	TST @#177714		; FIX?
+	TST @#177710
+	BNE TINIT
+	RETURN
+
+; keyboard interrupt
+KINT:	MOV R0,-(SP)
+	MOV @#177702,R0		; (!) read this register ONLY ONCE
+	MOV R1,-(SP)
+	MOV R2,-(SP)
+	MOV R3,-(SP)
+	MOV R4,-(SP)
+	MOV R5,-(SP)
+	MOV #177010,R4
+	MOV #177014,R5
+	MOV (R4),-(SP)		; save vaddr register 
+	; now R0-keycode, (R4)-vaddr, (R5)-vdata
+	MOV #KeyCurrent/2,(R4)
+	MOV R0,(R5)
+	BIT #^B10000000,R0	; key was released?
+	BNE 50$
+	; == key pressed ==
+	MOV #KeyAny/2,(R4)	; 'anykey' is also pressed
+	INC (R5)
+	MOV PC,R1
+	ADD #KDN-.,R1
+10$:	TST (R1)
+	BEQ 90$
+	CMP R0,(R1)+
+	BEQ 20$
+	ADD #4,R1
+	BR 10$
+20$:	; got our key
+	MOV (R1)+,(R4)		; set CPU addr
+	INC (R5)		; must be mov #1,(R5) but its ok with inc
+	MOV (R1)+,(R4)
+	BEQ 90$	
+	CLR (R5)
+	BR 90$
+50$:	; == key released - R0 = ^B1000xxxx
+	BIC #^B1111111111110000,R0
+	ASL R0
+	ADD R0,PC
+	BR 90$
+	BR 90$
+	BR 90$
+	BR 90$
+	BR 104$
+	BR 105$
+	BR 90$
+	BR 90$
+	BR 108$
+	BR 109$
+	BR 110$
+	BR 111$
+	BR 112$
+	BR 113$
+	BR 114$
+	BR 115$
+104$:	MOV #KeyStop/2,(R4)
+	BR 91$
+105$:   MOV #KeyShift/2,(R4)
+	BR 91$
+108$:   MOV #Key1/2,(R4)
+	CLR (R5)
+	MOV #KeyK1/2,(R4)
+	BR 91$
+109$:   MOV #Key2/2,(R4)
+	CLR (R5)
+	MOV #KeyK2/2,(R4)
+	BR 91$
+110$:   MOV #Key3/2,(R4)
+	CLR (R5)
+	MOV #KeyUst/2,(R4)
+	CLR (R5)
+	MOV #KeyK3/2,(R4)
+	BR 91$
+111$:   MOV #Key4/2,(R4)
+	CLR (R5)
+	MOV #KeySpace/2,(R4)
+	CLR (R5)
+	MOV #KeyRight/2,(R4)
+	BR 91$
+112$:   MOV #Key5/2,(R4)
+	CLR (R5)
+	MOV #KeyDown/2,(R4)
+	CLR (R5)
+	MOV #KeyUp/2,(R4)
+	CLR (R5)
+	MOV #KeyK4/2,(R4)
+	BR 91$
+113$:   MOV #Key6/2,(R4)
+	CLR (R5)
+	MOV #KeyK5/2,(R4)
+	BR 91$
+114$:   MOV #Key7/2,(R4)
+	CLR (R5)
+	MOV #KeyLeft/2,(R4)
+	BR 91$
+115$:   MOV #Key8/2,(R4)
+91$:	CLR (R5)
+	;
+90$:	MOV (SP)+,(R4)
+	MOV (SP)+,R5
+	MOV (SP)+,R4
+	MOV (SP)+,R3
+	MOV (SP)+,R2
+	MOV (SP)+,R1
+	MOV (SP)+,R0
+	RTI
+	;
+	; keys press - set 1st addr, clear second
+KDN:	.WORD ^B00000100,KeyStop/2,0
+	.WORD ^B01101010,KeyUst/2,0
+	.WORD ^B01101011,KeyEnter/2,0
+	.WORD ^B00011000,Key1/2,0
+	.WORD ^B00011001,Key2/2,0
+	.WORD ^B00011010,Key3/2,0
+	.WORD ^B00001011,Key4/2,0
+	.WORD ^B00011100,Key5/2,0
+	.WORD ^B00011101,Key6/2,0
+	.WORD ^B00001110,Key7/2,0
+	.WORD ^B00001111,Key8/2,0
+	.WORD ^B01001011,KeySpace/2,0
+	.WORD ^B01011100,KeyDown/2,KeyUp/2
+	.WORD ^B01101100,KeyUp/2,KeyDown/2
+	.WORD ^B01001110,KeyLeft/2,KeyRight/2
+	.WORD ^B01011011,KeyRight/2,KeyLeft/2
+	.WORD ^B00001000,KeyK1/2,0
+	.WORD ^B00001001,KeyK2/2,0
+	.WORD ^B00001010,KeyK3/2,0
+	.WORD ^B00001100,KeyK4/2,0
+	.WORD ^B00001101,KeyK5/2,0
+	.WORD ^B01000101,KeyShift/2,0
+	.WORD 0
+
+; //////////////////////////////////////////////////////////////////////////////
+; // Text(s) output routines
+; //////////////////////////////////////////////////////////////////////////////
+
+	;
+	; DRAW SINGLE CHAR
+	; INPUT: R0=SCREEN ADDR
+	; INPUT: R2=CHAR
+	; OUTPUT: R0=NEW SCREEN	ADDR (+2)
+XTXCH:	MOV #PPUV1/2,@#177010
+	MOV @#177014,R0
+	MOV #PPUV2/2,@#177010
+	MOV @#177014,R2
+	MOV #PPUV3/2,@#177010
+	MOV @#177014,XCHMSK
+	MOV #PPUV4/2,@#177010
+	MOV @#177014,XCHUND
+	;
+	MOV R2,-(SP)
+	ASL R2
+	MOV R2,-(SP)
+	ASL R2
+	ASL R2
+	ADD (SP)+,R2
+	ADD (SP)+,R2
+	ADD #FNT,R2
+	MOV #11.,R1
+1$:	MOVB (R2)+,R3
+	;
+	CLR R4
+	CLR R5
+	RORB R3
+	BCC 2$
+	BIS #^B0000001100000011,R4
+2$:	RORB R3
+	BCC 3$
+	BIS #^B0000110000001100,R4
+3$:	RORB R3
+	BCC 4$
+	BIS #^B0011000000110000,R4
+4$:	RORB R3
+	BCC 5$
+	BIS #^B1100000011000000,R4
+5$:	RORB R3
+	BCC 6$
+	BIS #^B0000001100000011,R5
+6$:	RORB R3
+	BCC 7$
+	BIS #^B0000110000001100,R5
+7$:	RORB R3
+	BCC 8$
+	BIS #^B0011000000110000,R5
+8$:	RORB R3
+	BCC 9$
+	BIS #^B1100000011000000,R5
+9$:
+	;
+	BIC XCHMSK,R4		; COLOR
+	BIC XCHMSK,R5		; COLOR
+	;
+	MOV R0,@#177010
+	MOV R4,@#177014
+
+	INC @#177010
+	MOV R5,@#177014
+
+	ADD #C_SCRWIH,R0
+	;
+	SOB R1,1$
+	;
+	DEC @#177010		; UNDERLINE
+	BIS XCHUND,@#177014
+	INC @#177010
+	BIS XCHUND,@#177014
+	;
+	SUB #880.-2.,R0
+	;
+	MOV #PPUV1/2,@#177010
+	MOV R0,@#177014
+	;
+	RET
+	;
+XCHMSK:	.WORD 0
+XCHUND:	.WORD 0
+	;
+	; PRINT	CHAR
+	; R0=CHAR,R1=SCR.ADDR.
+XPRCH:	MOV #PPUV1/2,@#177010
+	MOV @#177014,R0
+	MOV #PPUV2/2,@#177010
+	MOV @#177014,R1
+	;
+	MOV R1,-(SP)
+	MOV R0,-(SP)
+	ASL R0
+	MOV R0,-(SP)
+	ASL R0
+	ASL R0
+	ADD (SP)+,R0
+	ADD (SP)+,R0
+	ADD #FNT,R0 ; FNT.OFFS.
+	MOV #11.,-(SP)
+1$:	MOV #4.,R2
+	MOVB (R0)+,R3
+2$:	MOV R1,@#177010
+	CLR @#177014
+	ADD #C_SCRWIH,@#177010
+	CLR @#177014
+	RORB R3
+	BCC 3$
+	MOV R1,@#177010
+	BIS #7417,@#177014
+	ADD #C_SCRWIH,@#177010
+	BIS #7417,@#177014
+3$:	RORB R3
+	BCC 4$
+	MOV R1,@#177010
+	BIS #170360,@#177014
+	ADD #C_SCRWIH,@#177010
+	BIS #170360,@#177014
+4$:	INC R1
+	SOB R2,2$
+	ADD #C_SCRWIH+C_SCRWIH-4,R1
+	DEC (SP)
+	BNE 1$
+	TST (SP)+
+	MOV (SP)+,R1
+	ADD #4.,R1
+	;
+	MOV #PPUV2/2,@#177010
+	MOV R1,@#177014
+	;
+	RET
+	;
+
+; //////////////////////////////////////////////////////////////////////////////
+; // Video Tables
+; //////////////////////////////////////////////////////////////////////////////
+
+VTABS:	.BLKB 3540.	; 3 TABLES + 24. BYTES
+	NOP
+
+; //////////////////////////////////////////////////////////////////////////////
+; // The End
+; //////////////////////////////////////////////////////////////////////////////

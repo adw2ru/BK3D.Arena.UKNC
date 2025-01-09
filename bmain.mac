@@ -1,0 +1,130 @@
+	.TITLE MAIN
+	.LIST MEB
+	.ENABL LC	; without AMA, contains relocatable code
+	
+	.ASECT
+	.=1000
+
+@INCLUDE common.mac
+
+START:	MTPS #200	; stop right there, you interrupts
+
+	MOV #1,@#PpuComm
+
+	; run PPU first
+	MOV #PPUBEG,R4
+	MOV #PPUEND-PPUBEG/2,R5
+	CALL PPRUN
+	; check when ppu ready
+	TST @#PpuComm
+	BNE .-4
+
+; //////////////////////////////////////////////////////////////////////////////
+; // CPU code
+; //////////////////////////////////////////////////////////////////////////////
+
+@INCLUDE ar0.mac
+@INCLUDE tabs0.mac
+@INCLUDE util0.mac
+@INCLUDE wl0.mac
+@INCLUDE mn0.mac
+@INCLUDE lg0.mac
+@INCLUDE menu0.mac
+@INCLUDE tit0.mac
+
+; //////////////////////////////////////////////////////////////////////////////
+; // CPU <-> PPU
+; //////////////////////////////////////////////////////////////////////////////
+
+Key8:		.WORD 0		; key 8
+Key7:		.WORD 0		; key 7
+Key6:		.WORD 0		; key 6
+Key5:		.WORD 0		; key 5
+Key4:		.WORD 0		; key 4
+Key3:		.WORD 0		; key 3
+Key2:		.WORD 0		; key 2
+Key1:		.WORD 0		; key 1
+KeyK5:		.WORD 0		; key K5
+KeyK4:		.WORD 0		; key K4
+KeyK3:		.WORD 0		; key K3
+KeyK2:		.WORD 0		; key K2
+KeyK1:		.WORD 0		; key K1
+KeyStop:	.WORD 0		; key STOP
+KeyUst:		.WORD 0		; key UST
+KeyShift:	.WORD 0		; key SHIFT
+KeyEnter:	.WORD 0		; key ENTER
+KeySpace:	.WORD 0		; key SPACE
+KeyRight:	.WORD 0		; key ->
+KeyLeft:	.WORD 0		; key <-
+KeyDown:	.WORD 0		; key DOWN
+KeyUp:		.WORD 0		; key UP
+KeyAny:		.WORD 0		; key 'anykey'
+KeyCurrent:	.WORD 0		; current key
+;
+PPUV1:		.WORD 0		; Variable 1
+PPUV2:		.WORD 0		; Variable 2
+PPUV3:		.WORD 0		; Variable 3
+PPUV4:		.WORD 0		; Variable 4
+PpuComm:	.WORD 0		; PPU command ready flag
+
+NOMEM:	.ASCIZ"? unable to allocate memory in PPU"
+	.EVEN 
+
+; PPU message
+PPMSG:	.WORD PPARR	; address of beginning of array
+        .WORD 401	; end of transmission
+
+; PPU data exchange array
+PPARR:	.BYTE 0		; return value (0 - OK)
+PPCMD:	.BYTE 0		; command
+	.WORD 32	; device type (32 - PPU mem)
+PPAPP:	.WORD 0		; address for PPU
+PPACP:	.WORD 0		; address for CPU
+PPLEN:	.WORD 0		; length in words
+
+; send command to PPU with exch array
+PPSEN:	MOV #PPMSG,R0	; array address
+	MOV #5,R1	; bytes to send+1 (sending from @#PP_MSG)
+	BR 1$
+2$:	MOVB (R0)+,@#176676
+1$:	TSTB @#176674	; test if we are ready to send
+	BPL 1$		; cycle if >= 0 (not set last bit in byte)
+	SOB R1,2$
+	RETURN
+
+; send and start PPU code
+; R4 - start addr in CPU
+; R5 - length / 2
+PPRUN:	MOVB #1,PPCMD	; 1 - allocate memory
+	MOV R5,PPACP	; BUG FIX
+	CALL PPSEN
+	TSTB PPARR	; test if allocate success
+	BEQ 10$		; zero byte - OK
+	MTPS #0
+	MOV #NOMEM,R0
+	EMT #351	; .print
+	EMT #350	; .exit
+10$:	MOVB #20,PPCMD	; 20 - write to PPU mem
+	MOV R5,PPLEN
+	MOV R4,PPACP
+	CALL PPSEN
+	MOVB #30,PPCMD	; 30 - run
+	CALL PPSEN
+	RETURN
+
+PPFREE:	MOVB #2,PPCMD			; 2 - free memory
+	MOV #PPUEND-PPUBEG/2,PPACP	; BUG FIX
+	CALL PPSEN
+	RETURN 
+
+; //////////////////////////////////////////////////////////////////////////////
+; // PPU code
+; //////////////////////////////////////////////////////////////////////////////
+
+PPUBEG:
+
+@INCLUDE appu.mac
+	
+PPUEND:
+
+	.END START

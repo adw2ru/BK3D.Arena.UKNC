@@ -1,0 +1,56 @@
+;
+.MACRO RET
+	RETURN
+.ENDM
+;
+; //////////////////////////////////////////////////////////////////////////////	
+; // POSITIONS 
+; //////////////////////////////////////////////////////////////////////////////
+;
+C_VADDR=40020         	; walls address
+C_MADDR=110020		; monsters address
+C_XADDR=122260		; monsters virt.screen (+240 skip blank line)
+C_TADDR=100010		; register based menus/title screen
+C_SCRWID=160.		;
+C_SCRWIH=80.		;
+;
+SCOREP=C_TADDR+54	; SCORE	POSITION
+AMMOP=C_TADDR+40	; AMMO POSITION
+MSGLN=C_TADDR+3220	; MESSAGES POSITION
+;
+FNT=117430
+;
+; //////////////////////////////////////////////////////////////////////////////	
+; // PPU COMMANDS 
+; //////////////////////////////////////////////////////////////////////////////
+;
+V_SC0=0.		; SET GAME SCREEN VIDEO LINES 1
+V_SC1=1.             	; SET TITLE SCREEEN VIDEO LINES
+H_SND=2.		; HIT SOUND COMMAND
+A_SND=3.		; TAKE AMMO SOUND
+F_SND=4.		; FIRE SOUND
+F_IVTS=5.		; RECALC VIDEO TABLES
+F_EXIT=6.		; EXIT
+F_PCHR=7.		; PRINT CHAR FOR MENUS&TEXTS
+F_PMSG=8.		; PRINT CHAR FOR IN GAME MSGS
+F_TMR=9.		; TURN ON TIMER IN CPU
+V_SC2=10.		; SET GAME SCREEN VIDEO LINES 2
+;
+; //////////////////////////////////////////////////////////////////////////////	
+; // GLOBAL CONSTS 
+; //////////////////////////////////////////////////////////////////////////////
+;
+MNRS=12.		; MONSTER RECORD SIZE
+HITRAD=19.		; HIT RADIUS(ONE CELL EDGE IS 64)
+SCLIM=25.		; SCORE	LIMIT
+;
+; //////////////////////////////////////////////////////////////////////////////	
+; // GAME STATES 
+; //////////////////////////////////////////////////////////////////////////////
+;
+GSEXIT=0.		; EXIT
+GSGAME=1.		; GAME RUNNING
+GSPAUS=2.		; PAUSE
+GSPLWN=4.		; PLAYER WON
+GSHTWN=8.		; HUNTERS WON
+;
