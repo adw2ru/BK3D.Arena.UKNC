@@ -35,6 +35,7 @@ F_PCHR=7.		; PRINT CHAR FOR MENUS&TEXTS
 F_PMSG=8.		; PRINT CHAR FOR IN GAME MSGS
 F_TMR=9.		; TURN ON TIMER IN CPU
 V_SC2=10.		; SET GAME SCREEN VIDEO LINES 2
+M_STA=11.		; UPDATE MOUSE STATUS
 ;
 ; //////////////////////////////////////////////////////////////////////////////	
 ; // GLOBAL CONSTS 

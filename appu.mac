@@ -2,26 +2,39 @@
 	; PPU code
 	;
 	MTPS #200
-
+	;
 	; SAVE OLD VECTORS
 	CALL SAVE
-
+	;
 	; INIT VIDEO TABLES
 	CALL IVTS
-
+	;
 	; KEYBOARD
 	MOV PC,-(SP)
 	ADD #KINT-.,(SP)
 	MOV (SP)+,@#300
 	BIS #100,@#177700	; ENABLE KEYB INTERRUPTS
-
+	;
+	MOV #7774,@#7214	; FOR EMULATOR KB SUPPORT
+	;
+	; MOUSE PRESENSE TEST
+	CLR NOMSE				; ASSUME THAT WE HAVE MOUSE
+	MOV PC,-(SP)
+	ADD #I004-.,(SP)
+	MOV (SP)+,@#4
+	TST @#177400				; IF NO MOUSE WE HAVE 4 INT
+	; CLEAR MOUSE STATE
+	MOV #MSST/2,@#177010
+	CLR @#177014
+	CLR PMSST
+	;
 	; CHANNEL 2
 	MOV PC,-(SP)
 	ADD #CH2PLI-.,(SP)
 	MOV (SP)+,@#340		; INTERRUPT ROUTINE
 	MOV #200,@#342
 	BIS #2,@#177066		; ALLOW INTTERRUPTS FROM CH2
-
+	;
 	; TIMERS
 	BIS #^B0000001100000000,@#177054	; DISABLE VSYNC IN PPU&CPU
 	BIC #^B0001111110000000,@#177716	; SOUND INIT (MIXER OFF) 	
@@ -35,24 +48,46 @@
 	MOV #128.,TON+2		; DEFAULT
 	BIS #107,@#177710
 	BIC #^B0000000100000000,@#177054	; ENABLE VSYNC IN PPU
-
+	;
 	CALL READY
-
+	;
 	; AND HERE WE GO
 	MTPS #0
-
+	;
 	RETURN
+	;
 
 ; //////////////////////////////////////////////////////////////////////////////
 ; // Utils
 ; //////////////////////////////////////////////////////////////////////////////
 
+I004:	MOV #1,(PC)+
+NOMSE:	.WORD 0			; BUG OBSERVER
+	; *** VISUAL FAULTS ON BORDER ***
+	INC (PC)+
+FLGC:	.WORD 0
+	BIC #177700,FLGC
+	MOV @#177010,-(SP)
+	MOV R0,-(SP)
+	MOV FLGC,R0
+	DEC R0
+	ADD #51004,R0
+	MOV R0,@#177010
+	COM @#177014 
+	MOV (SP)+,R0
+        MOV (SP)+,@#177010
+	; *******************************
+	RTI
+
 READY:	; SET "PPU IS READY"
+	MOV @#177010,-(SP)
 	MOV #PpuComm/2,@#177010
 	CLR @#177014
+	MOV (SP)+,@#177010
 	RET
 
-SAVEM:	MOV #40000/2,R0		; FROM
+SAVEM:	MOV @#177010,-(SP)
+	MOV #40000/2,R0		; FROM
 	MOV #100000,R1		; INTO
 	MOV #30880./2,R2	; HOW MANY
 1$:	MOV R0,@#177010
@@ -66,9 +101,11 @@ SAVEM:	MOV #40000/2,R0		; FROM
 	INC R1
 	MOV R3,@#177012
 	SOB R2,1$
+	MOV (SP)+,@#177010
 	RET
 
-RESTM:	MOV #40000/2,R0		; INTO
+RESTM:	MOV @#177010,-(SP)
+	MOV #40000/2,R0		; INTO
 	MOV #100000,R1		; FROM
 	MOV #30880./2,R2	; HOW MANY
 1$:	MOV R1,@#177010
@@ -83,8 +120,8 @@ RESTM:	MOV #40000/2,R0		; INTO
 	SWAB R3
 	MOV R3,@#177014
 	SOB R2,1$
+	MOV (SP)+,@#177010
 	RET
-
 
 OLD300:	.WORD 0
 OLD340:	.WORD 0
@@ -97,6 +134,9 @@ OLDX66: .WORD 0
 OLDX00: .WORD 0
 OLD272:	.WORD 0
 OLD010: .WORD 0
+OLD004:	.WORD 0
+	;
+OL7214:	.WORD 0	; FOR EMULATOR KB SUPPORT
 
 SAVE:	MOV @#300,OLD300
 	MOV @#340,OLD340
@@ -113,12 +153,18 @@ SAVE:	MOV @#300,OLD300
 	;
 	MOV @#177010,OLD010
 	;
+	MOV @#4,OLD004
+	;
+	MOV @#7214,OL7214
+	;
 	CALL SAVEM
 	;
 	RETURN
 
 REST:	;
 	CALL RESTM
+	;
+	MOV OL7214,@#7214
 	;
 	MOV OLD300,@#300
 	MOV OLD340,@#340
@@ -135,6 +181,8 @@ REST:	;
 	MOV OLD272,@#272
 	;
 	MOV OLD010,@#177010
+	;
+	MOV OLD004,@#4
 	;
 	RETURN
 
@@ -161,8 +209,8 @@ IVTS:	MOV PC,R0
 	ADD #2,(R0)
 	BIS #2,(R0)+		; 2
 	; Put Format
-	MOV #20,(R0)+		; 2
-	MOV #7,(R0)+		; 2
+	MOV #24237,(R0)+	; 2  INITIAL CURSOR TYPE
+	MOV #7,(R0)+		; 2  "7"
 	CLR (R0)+		; 2
 	MOV R0,(R0)
 	ADD #2,(R0)+		; 2 2*8
@@ -192,8 +240,57 @@ IVTS:	MOV PC,R0
 	ADD #2,(R0)+		; 2 64*8
 	ADD #80.,R3
 	SOB R1,3$
+	;
 	MOV #44000,R3
-	MOV #64.,R1
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	BIS #1,-2(R0)		; TURN CURSOR ON
+	;
+	MOV R3,(R0)+	;
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R3
+	;
+	BIS #2,-2(R0)
+	;
+	MOV #24017,(R0)+
+	MOV #7,(R0)+
+	MOV R2,(R0)+	;
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	;
+	BIS #2,-2(R0)
+	;
+	MOV #24237,(R0)+
+	MOV #7,(R0)+
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R3
+	;
+	BIS #1,-2(R0)
+	;
+	MOV #64.-4.,R1
 4$:     MOV R2,(R0)+		; 2
 	MOV R0,(R0)
 	ADD #2,(R0)+		; 2
@@ -204,7 +301,8 @@ IVTS:	MOV PC,R0
 	BIT R1,#1		; Make doubles
 	BEQ 40$
 	ADD #80.,R3
-40$:	SOB R1,4$
+40$:	;
+	SOB R1,4$
 	; Empty Cycle
 	MOV #51000,(R0)+	; 2
 	MOV R0,(R0)
@@ -222,8 +320,8 @@ IVTS:	MOV PC,R0
 	ADD #2,(R0)
 	BIS #2,(R0)+		; 2
 	; Put Format
-	MOV #20,(R0)+		; 2
-	MOV #7,(R0)+		; 2
+	MOV #20,(R0)+		; 2 "20"
+	MOV #7,(R0)+		; 2 "7"
 	CLR (R0)+		; 2
 	MOV R0,(R0)
 	ADD #2,(R0)+		; 2 2*8
@@ -265,8 +363,8 @@ IVTS:	MOV PC,R0
 	ADD #2,(R0)
 	BIS #2,(R0)+		; 2
 	; Put Format
-	MOV #20,(R0)+		; 2
-	MOV #7,(R0)+		; 2
+	MOV #24237,(R0)+	; 2 INITIAL CURSOR TYPE
+	MOV #7,(R0)+		; 2 "7"
 	CLR (R0)+		; 2
 	MOV R0,(R0)
 	ADD #2,(R0)+		; 2 2*8
@@ -296,8 +394,57 @@ IVTS:	MOV PC,R0
 	ADD #2,(R0)+		; 2 64*8
 	ADD #80.,R3
 	SOB R1,10$
+	;
 	MOV #51120,R3
-	MOV #64.,R1
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	BIS #1,-2(R0)		; TURN CURSOR ON
+	;
+	MOV R3,(R0)+	;
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R3
+	;
+	BIS #2,-2(R0)
+	;
+	MOV #24017,(R0)+
+	MOV #7,(R0)+
+	MOV R2,(R0)+	;
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	;
+	BIS #2,-2(R0)
+	;
+	MOV #24237,(R0)+
+	MOV #7,(R0)+
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	;
+	MOV R2,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R2
+	MOV R3,(R0)+
+	MOV R0,(R0)
+	ADD #2,(R0)+
+	ADD #80.,R3
+	;
+	BIS #1,-2(R0)
+	;
+	MOV #64.-4.,R1
 11$:	MOV R2,(R0)+		; 2
 	MOV R0,(R0)
 	ADD #2,(R0)+		; 2
@@ -308,7 +455,8 @@ IVTS:	MOV PC,R0
 	BIT R1,#1		; Make doubles
 	BEQ 110$
 	ADD #80.,R3
-110$:	SOB R1,11$
+110$:	;
+	SOB R1,11$
 	; Empty Cycle
 	MOV #51000,(R0)+	; 2
 	MOV R0,(R0)
@@ -335,6 +483,7 @@ CH2PLI:	MOV R0,-(SP)
 	BR CH2P8
 	BR CH2P9
 	BR CH2P10
+	BR CH2P11
 EXP:	CALL READY
 	MOV (SP)+,R5
 	MOV (SP)+,R4
@@ -386,6 +535,9 @@ CH2P10:	MOV VT3A,-(SP)
 	BIS #6,(SP)
 	MOV (SP)+,@#272
 	BR EXP
+	; UPDATE MOUSE STATUS
+CH2P11:	CALL MSSPR
+	BR EXP
 	;
 
 POPT:	DEC (PC)+
@@ -393,7 +545,9 @@ COUNT:	.WORD 5.
 	BNE 1$
 	MOV #128.,TON+2		; DEFAULT -> STOP SOUND
 	MOV #5.,COUNT
-1$:	RTI
+	;CALL MSSPR		; TODO: STRANGE BEHAVIOR IN EMULATOR
+1$:	CALL MSSPR
+	RTI
 
 POP:	TST @#177714
 	TST @#177714		; FIX?
@@ -405,6 +559,48 @@ POP:	TST @#177714
 	MOV (SP)+,R0
 TON:	MOV #0,@#177712
 	RTI
+
+	; PROCESS MOUSE STATE&LEFT,RIGHT BUTTONS
+MSSPR:	TST NOMSE	; IS MOUSE STILL HERE?
+	BNE 1$
+	MOV R0,-(SP)
+	MOV @#177400,R0	; TRY READ MOUSE STATUS
+	MOV @#177010,-(SP)
+	MOV #MSST/2,@#177010
+	TST NOMSE	; WE HAVE TROUBLE?
+	BEQ 6$		; NO WE DON'T
+	; WE HAVE SHIT HAPPENS
+	CLR NOMSE	; RESET SHIT FLAG
+	MOV @#177014,R0	; TAKE OLD VALUE
+6$:	MOV R0,@#177014
+	BIT R0,#1.	; RB
+	BEQ 2$
+	BIT PMSST,#1.
+	BNE 4$
+	MOV #KeyShift/2,@#177010
+	INC @#177014
+	BR 4$
+2$:	BIT PMSST,#1.
+	BEQ 4$
+	MOV #KeyShift/2,@#177010
+	CLR @#177014
+4$:	BIT R0,#256.	; LB
+	BEQ 3$
+	BIT PMSST,#256.
+	BNE 5$
+	MOV #KeySpace/2,@#177010
+	INC @#177014
+	BR 5$
+3$:	BIT PMSST,#256.
+	BEQ 5$
+	MOV #KeySpace/2,@#177010
+	CLR @#177014
+5$:	MOV R0,PMSST
+	MOV (SP)+,@#177010
+	MOV (SP)+,R0
+1$:	RET
+
+PMSST:	.WORD 0			; PREV.MOUSE STATE
 
 ; pp timer ready wait
 TINIT:	CLR @#177710
@@ -452,31 +648,41 @@ KINT:	MOV R0,-(SP)
 	BIC #^B1111111111110000,R0
 	ASL R0
 	ADD R0,PC
-	BR 90$
-	BR 90$
-	BR 90$
-	BR 90$
-	BR 104$
-	BR 105$
-	BR 90$
-	BR 90$
-	BR 108$
-	BR 109$
-	BR 110$
-	BR 111$
-	BR 112$
-	BR 113$
-	BR 114$
-	BR 115$
+	BR 90$		; 0000
+	BR 90$		; 0001
+	BR 90$		; 0010
+	BR 90$		; 0011
+	BR 104$		; 0100
+	BR 105$		; 0101
+	BR 90$		; 0110
+	BR 107$		; 0111 J F
+	BR 108$		; 1000 C Y
+	BR 109$		; 1001 W
+	BR 110$		; 1010
+	BR 111$		; 1011
+	BR 112$		; 1100
+	BR 113$		; 1101
+	BR 114$		; 1110
+	BR 115$		; 1111
 104$:	MOV #KeyStop/2,(R4)
 	BR 91$
 105$:   MOV #KeyShift/2,(R4)
 	BR 91$
-108$:   MOV #Key1/2,(R4)
+107$:	MOV #KeyJ/2,(R4)
+	CLR (R5)
+	MOV #KeyF/2,(R4)
+	BR 91$
+108$:   MOV #KeyC/2,(R4)
+	CLR (R5)
+	MOV #KeyY/2,(R4)
+	CLR (R5)
+	MOV #Key1/2,(R4)
 	CLR (R5)
 	MOV #KeyK1/2,(R4)
 	BR 91$
-109$:   MOV #Key2/2,(R4)
+109$:   MOV #KeyW/2,(R4)
+	CLR (R5)
+	MOV #Key2/2,(R4)
 	CLR (R5)
 	MOV #KeyK2/2,(R4)
 	BR 91$
@@ -543,6 +749,13 @@ KDN:	.WORD ^B00000100,KeyStop/2,0
 	.WORD ^B00001100,KeyK4/2,0
 	.WORD ^B00001101,KeyK5/2,0
 	.WORD ^B01000101,KeyShift/2,0
+	;
+	.WORD ^B00010111,KeyJ/2,KeyK3/2
+	.WORD ^B00101000,KeyC/2,KeyDown/2
+	.WORD ^B00100111,KeyF/2,KeyW/2
+	.WORD ^B00111000,KeyY/2,KeyUp/2
+	.WORD ^B00111001,KeyW/2,KeyF/2
+	;
 	.WORD 0
 
 ; //////////////////////////////////////////////////////////////////////////////
@@ -554,7 +767,9 @@ KDN:	.WORD ^B00000100,KeyStop/2,0
 	; INPUT: R0=SCREEN ADDR
 	; INPUT: R2=CHAR
 	; OUTPUT: R0=NEW SCREEN	ADDR (+2)
-XTXCH:	MOV #PPUV1/2,@#177010
+XTXCH:	MOV @#177010,-(SP)
+	;
+	MOV #PPUV1/2,@#177010
 	MOV @#177014,R0
 	MOV #PPUV2/2,@#177010
 	MOV @#177014,R2
@@ -625,6 +840,7 @@ XTXCH:	MOV #PPUV1/2,@#177010
 	MOV #PPUV1/2,@#177010
 	MOV R0,@#177014
 	;
+	MOV (SP)+,@#177010
 	RET
 	;
 XCHMSK:	.WORD 0
@@ -632,7 +848,9 @@ XCHUND:	.WORD 0
 	;
 	; PRINT	CHAR
 	; R0=CHAR,R1=SCR.ADDR.
-XPRCH:	MOV #PPUV1/2,@#177010
+XPRCH:	MOV @#177010,-(SP)
+	;
+	MOV #PPUV1/2,@#177010
 	MOV @#177014,R0
 	MOV #PPUV2/2,@#177010
 	MOV @#177014,R1
@@ -677,6 +895,7 @@ XPRCH:	MOV #PPUV1/2,@#177010
 	MOV #PPUV2/2,@#177010
 	MOV R1,@#177014
 	;
+	MOV (SP)+,@#177010
 	RET
 	;
 
