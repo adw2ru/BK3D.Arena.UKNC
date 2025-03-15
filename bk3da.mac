@@ -76,6 +76,8 @@ PpuComm:	.WORD 0		; PPU command ready flag
 ;
 MSST:		.WORD 0		; MOUSE STATE
 ;
+APAL:		.WORD 0		; ACTIVE PALLETE (0=GRB,1=RGB,2=BW1,3=BW2)
+;
 
 NOMEM:	.ASCIZ"? unable to allocate memory in PPU"
 	.EVEN 
