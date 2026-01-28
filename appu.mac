@@ -1,13 +1,15 @@
 	;
+	VDTBSZ=4096.	;
+	;
 	; PPU code
 	;
 	MTPS #200
 	;
-	; SAVE OLD VECTORS
-	CALL SAVE
-	;
 	; INIT VIDEO TABLES
 	CALL IVTS
+	;
+	; SAVE OLD VECTORS
+	CALL SAVE
 	;
 	; KEYBOARD
 	MOV PC,-(SP)
@@ -22,7 +24,7 @@
 	MOV PC,-(SP)
 	ADD #I004-.,(SP)
 	MOV (SP)+,@#4
-	TST @#177400		; IF NO MOUSE WE HAVE 4 INT
+	MOV @#100601,@#177400	; IF NO MOUSE WE HAVE 4 INT
 	; CLEAR MOUSE STATE
 	MOV #MSST/2,@#177010
 	CLR @#177014
@@ -150,10 +152,20 @@ SAVE:	MOV @#4,OLD004
 	MOV @#177066,OLDX66
 	MOV @#177716,OLDX16
 	MOV @#177054,OLDX54
+	; TURN ON EMPTY SCREEN
+	MOV VT0A,-(SP)
+	BIS #6,(SP)
+	MOV (SP)+,@#272
+	; NOW SAVE MEMORY
 	CALL SAVEM
 	RETURN
 
-REST:	CALL RESTM
+REST:	; TURN ON EMPTY SCREEN
+	MOV VT0A,-(SP)
+	BIS #6,(SP)
+	MOV (SP)+,@#272
+	;
+	CALL RESTM
 	MOV OLDX54,@#177054
 	MOV OLDX16,@#177716
 	MOV OLDX66,@#177066
@@ -170,6 +182,7 @@ REST:	CALL RESTM
 	MOV OLD004,@#4
 	RETURN
 	;
+VT0A:	.WORD 0			; Empty video table
 VT1A:	.WORD 0			; Video Table 1 Address
 VT2A:	.WORD 0			; Video Table 2 Address
 VT3A:	.WORD 0			; Video Table 3 Address
@@ -445,6 +458,33 @@ IVTS:	MOV PC,R0
 	MOV #51000,(R0)+	; 2
 	MOV R0,(R0)
 	SUB #2,(R0)+		; 2 4 2*8+4*16+4*16+64*8+64*8+4=1172
+	;
+	; Blank screen video table
+	ADD #7,R0
+	BIC #7,R0		; BOUND TO 8 BYTES
+	MOV R0,VT0A
+	;
+	ADD #7,R0
+	BIC #7,R0
+	MOV R0,VT0A
+	;
+	MOV #114610,(R0)+	; 2
+	MOV #125314,(R0)+	; 2
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)
+	BIS #2,(R0)+		; 2
+	;
+	MOV #24237,(R0)+	; 2 INITIAL CURSOR TYPE
+	MOV #7,(R0)+		; 2 "7"
+	CLR (R0)+		; 2
+	MOV R0,(R0)
+	ADD #2,(R0)+		; 2
+	;
+	MOV #MAP/2,(R0)+	; 2 Some empty buffer
+	MOV R0,(R0)
+	SUB #2,(R0)+		; 2 : 20. BYTES
+	;
 	RETURN
 
 CH2PLI:	MOV R0,-(SP)
@@ -919,7 +959,7 @@ XPRCH:	MOV @#177010,-(SP)
 ; // Video Tables
 ; //////////////////////////////////////////////////////////////////////////////
 
-VTABS:	.BLKB 3540.	; 3 TABLES + 24. BYTES
+VTABS:	.BLKB VDTBSZ
 	NOP
 
 ; //////////////////////////////////////////////////////////////////////////////

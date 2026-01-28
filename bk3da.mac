@@ -9,6 +9,8 @@
 
 START:	MTPS #200	; stop right there, you interrupts
 
+	CALL CLMAPS
+
 	MOV #1,@#PpuComm
 
 	; run PPU first
