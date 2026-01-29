@@ -710,16 +710,16 @@ KINT:	MOV R0,-(SP)
 	BR 90$		; 0011
 	BR 104$		; 0100
 	BR 105$		; 0101
-	BR 90$		; 0110
+	BR 110$		; 0110
 	BR 107$		; 0111 J F
 	BR 108$		; 1000 C Y
 	BR 109$		; 1001 W
-	BR 110$		; 1010
+	BR 90$		; 1010
 	BR 111$		; 1011
 	BR 112$		; 1100
-	BR 113$		; 1101
+	BR 90$		; 1101
 	BR 114$		; 1110
-	BR 115$		; 1111
+	BR 90$		; 1111
 104$:	MOV #KeyStop/2,(R4)
 	BR 91$
 105$:   MOV #KeyShift/2,(R4)
@@ -731,46 +731,26 @@ KINT:	MOV R0,-(SP)
 108$:   MOV #KeyC/2,(R4)
 	CLR (R5)
 	MOV #KeyY/2,(R4)
-	CLR (R5)
-	MOV #Key1/2,(R4)
-	CLR (R5)
-	MOV #KeyK1/2,(R4)
 	BR 91$
 109$:   MOV #KeyW/2,(R4)
 	CLR (R5)
-	MOV #Key2/2,(R4)
-	CLR (R5)
-	MOV #KeyK2/2,(R4)
+	MOV #KeySBR/2,(R4)
 	BR 91$
-110$:   MOV #Key3/2,(R4)
+110$:   MOV #KeyAR2/2,(R4)
 	CLR (R5)
-	MOV #KeyUst/2,(R4)
-	CLR (R5)
-	MOV #KeyK3/2,(R4)
+	MOV #KeyTAB/2,(R4)
 	BR 91$
-111$:   MOV #Key4/2,(R4)
+111$:   MOV #KeyEnter/2,(R4)
 	CLR (R5)
 	MOV #KeySpace/2,(R4)
 	CLR (R5)
 	MOV #KeyRight/2,(R4)
 	BR 91$
-112$:   MOV #Key5/2,(R4)
-	CLR (R5)
-	MOV #KeyDown/2,(R4)
+112$:   MOV #KeyDown/2,(R4)
 	CLR (R5)
 	MOV #KeyUp/2,(R4)
-	CLR (R5)
-	MOV #KeyK4/2,(R4)
 	BR 91$
-113$:   MOV #Key6/2,(R4)
-	CLR (R5)
-	MOV #KeyK5/2,(R4)
-	BR 91$
-114$:   MOV #Key7/2,(R4)
-	CLR (R5)
-	MOV #KeyLeft/2,(R4)
-	BR 91$
-115$:   MOV #Key8/2,(R4)
+114$:   MOV #KeyLeft/2,(R4)
 91$:	CLR (R5)
 	;
 90$:	MOV (SP)+,(R4)
@@ -784,29 +764,17 @@ KINT:	MOV R0,-(SP)
 	;
 	; keys press - set 1st addr, clear second
 KDN:	.WORD ^B00000100,KeyStop/2,0
-	.WORD ^B01101010,KeyUst/2,0
 	.WORD ^B01101011,KeyEnter/2,0
-	.WORD ^B00011000,Key1/2,0
-	.WORD ^B00011001,Key2/2,0
-	.WORD ^B00011010,Key3/2,0
-	.WORD ^B00001011,Key4/2,0
-	.WORD ^B00011100,Key5/2,0
-	.WORD ^B00011101,Key6/2,0
-	.WORD ^B00001110,Key7/2,0
-	.WORD ^B00001111,Key8/2,0
 	.WORD ^B01001011,KeySpace/2,0
 	.WORD ^B01011100,KeyDown/2,KeyUp/2
 	.WORD ^B01101100,KeyUp/2,KeyDown/2
 	.WORD ^B01001110,KeyLeft/2,KeyRight/2
 	.WORD ^B01011011,KeyRight/2,KeyLeft/2
-	.WORD ^B00001000,KeyK1/2,0
-	.WORD ^B00001001,KeyK2/2,0
-	.WORD ^B00001010,KeyK3/2,0
-	.WORD ^B00001100,KeyK4/2,0
-	.WORD ^B00001101,KeyK5/2,0
+	.WORD ^B00010110,KeyTAB/2,0
+	.WORD ^B01111001,KeySBR/2,0
+	.WORD ^B00000110,KeyAR2/2,0
 	.WORD ^B01000101,KeyShift/2,0
-	;
-	.WORD ^B00010111,KeyJ/2,KeyK3/2
+	.WORD ^B00010111,KeyJ/2,0
 	.WORD ^B00101000,KeyC/2,KeyDown/2
 	.WORD ^B00100111,KeyF/2,KeyW/2
 	.WORD ^B00111000,KeyY/2,KeyUp/2

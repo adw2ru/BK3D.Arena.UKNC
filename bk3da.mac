@@ -45,21 +45,10 @@ KeyF:		.WORD 0		; key F
 KeyY:		.WORD 0		; key Y
 KeyW:		.WORD 0		; key W
 ;
-Key8:		.WORD 0		; key 8
-Key7:		.WORD 0		; key 7
-Key6:		.WORD 0		; key 6
-Key5:		.WORD 0		; key 5
-Key4:		.WORD 0		; key 4
-Key3:		.WORD 0		; key 3
-Key2:		.WORD 0		; key 2
-Key1:		.WORD 0		; key 1
-KeyK5:		.WORD 0		; key K5
-KeyK4:		.WORD 0		; key K4
-KeyK3:		.WORD 0		; key K3
-KeyK2:		.WORD 0		; key K2
-KeyK1:		.WORD 0		; key K1
+KeyAR2:		.WORD 0		; key AR2
+KeySBR:		.WORD 0		; key SBROS
+KeyTAB:		.WORD 0		; key TAB
 KeyStop:	.WORD 0		; key STOP
-KeyUst:		.WORD 0		; key UST
 KeyShift:	.WORD 0		; key SHIFT
 KeyEnter:	.WORD 0		; key ENTER
 KeySpace:	.WORD 0		; key SPACE
@@ -67,6 +56,7 @@ KeyRight:	.WORD 0		; key ->
 KeyLeft:	.WORD 0		; key <-
 KeyDown:	.WORD 0		; key DOWN
 KeyUp:		.WORD 0		; key UP
+;
 KeyAny:		.WORD 0		; key 'anykey'
 KeyCurrent:	.WORD 0		; current key
 ;
